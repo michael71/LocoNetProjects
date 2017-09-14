@@ -1,0 +1,23 @@
+see
+
+http://nh-finescale.nl/fremo/dcc/fremo-ln-shield/FremoLNShield.html
+
+Jumpers: (ALS REINES INTERFACE, MIT ZENTRALE)
+
+Funktion 	Jumper 	Beschreibung
+Loconet Pullup 	P_UP 	OFF
+Railsync 	RS 	OFF
+Loconet 	TX 	T6/T7 	T6
+Loconet 	RX 	RX 	ON
+VIN 		JP5 	OFF
+Power 		J3 	nicht angeschlossen
+
+Jumpers: bei Betrieb mit LN-Speisung (ohne Zentrale)
+
+Funktion 	Jumper 	Beschreibung
+Loconet Pullup 	P_UP 	ON
+Railsync 	RS 	ON
+Loconet 	TX 	T6/T7 	T6
+Loconet 	RX 	RX 	ON
+VIN 		JP5 	ON
+Power 		J3 	12v Netzteil

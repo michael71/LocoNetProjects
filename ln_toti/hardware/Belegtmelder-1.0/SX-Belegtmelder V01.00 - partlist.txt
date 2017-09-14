@@ -1,0 +1,46 @@
+Partlist
+
+Exported from SX-Belegtmelder V01.00.sch at 26.08.16 14:48
+
+EAGLE Version 7.5.0 Copyright (c) 1988-2015 CadSoft
+
+Assembly variant: 
+
+Part     Value          Device          Package      Library         
+
+C1       100n           C-EU025-025X050 100nF / 2,54mm       
+C2       100n           C-EU025-025X050 100nF / 2,54mm          
+C3       100n           C-EU025-024X044 100nF / 2,54mm          
+C4       100n           C-EU025-024X044 100nF / 2,54mm           
+C5       100n           C-EU025-024X044 100nF / 2,54mm         
+C6       100n           C-EU025-024X044 100nF / 2,54mm           
+C7       100n           C-EU025-024X044 100nF / 2,54mm        
+C8       100n           C-EU025-024X044 100nF / 2,54mm        
+D1       2*1N5405       TWIN-DIODE      TWIN-DIODE   je 2 Dioden in Reihe geschaltet
+D2       2*1N5405       TWIN-DIODE      TWIN-DIODE   ACHTUNG auf Polariät achten
+D3       2*1N5405       TWIN-DIODE      TWIN-DIODE   siehe Schaltplan
+D4       2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D5       2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D6       2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D7       2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D8       2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D9       2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D10      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D11      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D12      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D13      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D14      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D15      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+D16      2*1N5405       TWIN-DIODE      TWIN-DIODE   
+J1                      MA20-1          Steckerleiste Raster 2,54mm 20polig, zB Reichelt "MPE 087-1-020
+J2                      MA20-1          Steckerleiste Raster 2,54mm 20polig, zB Reichelt "MPE 087-1-020
+OK1      LTV844         LTV844          DIL16        optocoupler    
+OK2      LTV844         LTV844          DIL16        optocoupler    
+R1       33             R-EU_0204/2V    Widerstand 33 Ohm, stehend eingebaut
+R2       33             R-EU_0204/2V     
+R3       33             R-EU_0204/2V     
+R4       33             R-EU_0204/2V    
+R5       33             R-EU_0204/2V    
+R6       33             R-EU_0204/2V    
+R7       33             R-EU_0204/2V    
+R8       33             R-EU_0204/2V    
