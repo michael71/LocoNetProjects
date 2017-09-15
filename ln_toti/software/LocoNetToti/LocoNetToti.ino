@@ -4,7 +4,6 @@
  *
  * Created:    09.09.2017
  * Copyright:  Michael Blank
- * Version:    V01.00
  * 
  * Zielhardware/-controller: Arduino Pro Mini (5V, 16MHz), ATmega328
  * Basis LN 1.0 + BM-Aufsteckplatine R. Thamm
@@ -22,7 +21,7 @@
 #include <EEPROM.h>
 #include <OneButton.h>
 
-#define  DEFAULTADDR  880          // die Start-Adresse, auf die dieses Modul hört
+#define  DEFAULTADDR  890          // die Start-Adresse, auf die dieses Modul hört
 #define  DEFAULTCODEDDELAYTIME 20  // *25ms = 500ms Abfallverzögerung
 #define  DELAYTIMEFACTOR 25        // 1 digit entspricht 25ms
 #define  START_DELAY   3000        // send "start of day" messages 3 secs after reset
@@ -35,8 +34,11 @@
 
 #define  EEPROMSIZE 2                  // 2 Byte vorsehen: Adresse und Abfallverzögerung
 
-char swversion[] = "SW V01.01";
+char swversion[] = "SW V01.02";
 char hwversion[] = "HW V01.00";
+char product[] = "LocoNetToti";
+// article number: 51000 - only first 4 digits used
+const uint16_t artno = 5100;  
 
 int LNAddr;
 lnMsg *LnPacket;
@@ -61,7 +63,8 @@ int codedDelayTime;       // Abbildung in einem Byte: pro Digit=25ms, hier 500ms
 // für den Programmiervorgang über den LN-Bus:
 boolean programming = false;
 OneButton progBtn(PROGBUTTON, true);  // 0 = key pressed
-
+unsigned long blinkLEDtime;
+boolean ledON = false;
 unsigned long time1;
 
 
@@ -76,6 +79,9 @@ void setup() {
 	time1 = millis();
 	Serial.begin(57600);
 	delay(10);
+  Serial.println(product);
+  Serial.print("Art# ");
+  Serial.println(artno*10);
 	Serial.println(swversion);
 	Serial.println(hwversion);
 
@@ -86,6 +92,7 @@ void setup() {
 		lastOccupied[i] = millis();
 	}
 
+  
 	digitalWrite(PROGLED, LOW);
 	pinMode(PROGLED, OUTPUT);
 
@@ -94,6 +101,10 @@ void setup() {
 
   LNAddr = DEFAULTADDR;
   delayTime = DEFAULTCODEDDELAYTIME * DELAYTIMEFACTOR;
+
+  Serial.print("ln-adr=");
+  Serial.print(LNAddr);
+  Serial.println(" ..7");
   
 	/*if (!EEPROMEmpty()) {
 	 EEPROMRead();
@@ -113,9 +124,6 @@ void setup() {
 //******************************************************************************************
 void toggleProgramming() {
 	// called when button is long pressed
-#ifdef TESTVERSION
-	Serial.println(F("toggleProgramming"));
-#endif
 
 	if (!programming) {
 		startProgramming();
@@ -130,7 +138,9 @@ void startProgramming() {
 #ifdef TESTVERSION
 	Serial.println(F("startProgramming"));
 #endif 
+  ledON = true;
 	digitalWrite(PROGLED, HIGH);
+  blinkLEDtime = millis();
 	programming = true;
 	//saveOldSXValues();
 
@@ -139,7 +149,7 @@ void startProgramming() {
 
 //******************************************************************************************
 void finishProgramming() {
-
+ 
 #ifdef TESTVERSION
 	Serial.println(F("finishProgramming"));
 #endif
@@ -151,12 +161,24 @@ void finishProgramming() {
 	 restoreOldSXValues();
 	 delay(80); */
 	programming = false;
+  ledON = false;
 	digitalWrite(PROGLED, LOW);
 }
 
 //******************************************************************************************
 void processProgramming() {
 // TODO
+   if ((millis() - blinkLEDtime) >350) {
+     // toggle LED
+     blinkLEDtime = millis();
+     if (ledON) {
+      ledON = false;
+      digitalWrite(PROGLED,LOW);
+     } else {
+      ledON = true;
+      digitalWrite(PROGLED,HIGH);
+     }
+   }
 }
 
 /*** LOCONET PROTOCOL:
