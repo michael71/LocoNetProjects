@@ -16,9 +16,12 @@
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
+# Sloeber Settings 
+.cproject 
+.ino.cpp
+.project
+.settings
+Release/
 
 # Compiled Static libraries
 *.lai
