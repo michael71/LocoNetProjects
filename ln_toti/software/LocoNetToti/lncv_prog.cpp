@@ -1,9 +1,35 @@
 /*
  * lncv_prog.c
+ *****************************************************************************
  *
- *  Created on: 16.09.2017
- *      Author: mblank
- */
+ *  Copyright (C) 2013 Damian Philipp
+ *  Copyright (C) 2017 Michael Blank (store in EEPROM)
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ ******************************************************************************
+ *
+ * DESCRIPTION
+ *
+ * Most parts of the code are copied from the LocoNetLNCVDemo example
+ * (part of the LocoNet library)
+ *
+ * The LNCVs are stored in EEPROM, thus all settings are still
+ * avalable after a reset of the Arduino.
+ *
+ ******************************************************************************/
 
 #include "lncv_prog.h"
 #include <HardwareSerial.h>
@@ -14,17 +40,15 @@ extern uint16_t debug;
 
 extern void finishProgramming(void);
 
-
 uint16_t lncv[LNCV_COUNT];   // values of LNCVs
 LocoNetCVClass lnCV;
 boolean programmingModeEnabled = false;
 boolean programmingMode = false;
 
-void initFromEEPROM() {
+void readLNCVsFromEEPROM() {
 	EEPROM.get(0, lncv);   // read inital lncv values
 }
-// The following routines are copied from LocoNetLNCVDemo
-// Copyright (C) 2013 Damian Philipp
+
 // This call-back function is called from LocoNet.processSwitchSensorMessage
 // for all Sensor messages
 void notifySensor(uint16_t Address, uint8_t State) {

@@ -10,9 +10,18 @@
  * Zielhardware/-controller: Arduino Pro Mini (5V, 16MHz), ATmega328
  * Basis LN 1.0 + BM-Aufsteckplatine R. Thamm
  * 
- * Adresse des Moduls und Abfallverzögerung werden im EEPROM des Controllers abgespeichert.
+ * Adresse des Moduls und Abfallverzögerung werden im EEPROM des Controllers
+ * abgespeichert.
+ * lncv[0] contains Module Address
+ * lncv[1] first LocoNetAddress
+ * lncv[2] switch off Delay in milliseconds
+ * lncv[3] Debug setting, 0=off, 1=on, 2=debug-toti
+ *
+ *
+ * Using the LocoNet Arduino library, see https://github.com/mrrwa
  * 
  * Changes:
+ * 16.09.2017:      using LNCV programming for parameters
  * 09.09.2017:      initial version
  *
  *******************************************************************************************/
@@ -20,12 +29,12 @@
 #include <LocoNet.h>
 #include <OneButton.h>
 #include "lncv_prog.h"
-#include "config.h"
+#include "config.h"      // contains article number and lncv count
 
-#define  NCHAN         8           // number of detection channels (=number of addresses)
-#define  START_DELAY   3000        // send "start of day" messages 3 secs after reset
-#define  DEFAULTLNADDR  900         // first LN-Addr, if not set per LNCV[1] setting
-#define  DEFAULTDELAY   500         // switch-off delay, if not set per LNCV[2] setting
+#define  NCHAN         8       // number of detection channels (=number of addresses)
+#define  START_DELAY   3000    // send "start of day" messages 3 secs after reset
+#define  DEFAULTLNADDR  901    // first LN-Addr, if not set per LNCV[1] setting
+#define  DEFAULTDELAY   350    // switch-off delay, if not set per LNCV[2] setting
 
 #define  LEDBLINKTIME   350
 #define  PROGLED 13
@@ -35,15 +44,14 @@
 //#define  EEPROMSIZE 2                  // 2 Byte vorsehen: Adresse und Abfallverzögerung
 
 uint16_t debug;
-const char swversion[] = "SW V01.02";
+const char swversion[] = "SW V01.10";
 const char hwversion[] = "HW V01.00";
 const char product[] = "LocoNetToti";
-
 
 extern uint16_t lncv[];   // values of LNCVs
 extern LocoNetCVClass lnCV;
 
-int LNAddr;
+int firstLNAddr;
 lnMsg *LnPacket;
 int err;
 
@@ -57,11 +65,11 @@ unsigned long lastOccupied[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // Zeitpunkt letzter
 
 unsigned delayTime;       // Verzögerungszeit gegen Melderflackern
 
-// für den Programmiervorgang über den LN-Bus:
-extern boolean programmingModeEnabled; // a key must be pressed to enter programming mode
+// programming of LNCVs must be enabled by pressing key for >= 3 seconds
+extern boolean programmingModeEnabled;
 extern boolean programmingMode;
 
-OneButton progBtn(PROGBUTTON, true);  // 0 = key pressed
+OneButton progBtn(PROGBUTTON, true);   // key pressed == LOW
 unsigned long blinkLEDtimer;
 boolean ledON = false;
 unsigned long debugTimer;
@@ -75,15 +83,7 @@ void finishProgramming(void);
 //******************************************************************************************
 void setup() {
 
-	LocoNet.init();
-
 	Serial.begin(57600);
-	delay(10);
-
-	initFromEEPROM();   // read initial lncv values
-	printLNCVs();
-
-	debugTimer = millis();
 
 	Serial.println(product);
 	Serial.print("Art# ");
@@ -91,6 +91,14 @@ void setup() {
 	Serial.println(longArticleNumber);
 	Serial.println(swversion);
 	Serial.println(hwversion);
+
+	LocoNet.init();
+
+	readLNCVsFromEEPROM();   // read initial lncv values
+	printLNCVs();
+	checkSettings();
+
+	debugTimer = millis();
 
 	for (int i = 0; i < 8; i++) {
 		pinMode(DataPin[i], INPUT);
@@ -104,9 +112,12 @@ void setup() {
 	progBtn.attachLongPressStart(toggleEnableProgramming);
 	progBtn.setPressTicks(PROG_ACTIVATE_TIME);
 
-	LNAddr = lncv[1];
-	if (LNAddr > 2047) {
-		LNAddr = DEFAULTLNADDR;
+}
+
+void checkSettings() {
+	firstLNAddr = lncv[1];
+	if (firstLNAddr > 2047) {
+		firstLNAddr = DEFAULTLNADDR;
 		Serial.print(F("invalid LN-addr in lncv[1] - default "));
 		Serial.print(DEFAULTLNADDR);
 		Serial.println(F(" used"));
@@ -119,7 +130,6 @@ void setup() {
 		Serial.println(F(" used"));
 	}
 	debug = lncv[3];
-
 }
 
 void printLNCVs() {
@@ -161,6 +171,7 @@ void finishProgramming() {
 		Serial.print(F("End Programing Mode.\n"));
 		printLNCVs();
 	}
+	checkSettings();
 }
 
 //******************************************************************************************
@@ -197,7 +208,7 @@ void blinkLEDtick() {
  0 is RESERVED for future!
  */
 
-//******************************************************************************************
+//*************************************************************************
 void loop() {
 
 	progBtn.tick();
@@ -205,14 +216,16 @@ void loop() {
 		blinkLEDtick();
 	}
 
-	// check sensor states and send update to LN, if changed
+	// check sensor states and send update to LN, if state has changed
 	for (int i = 0; i < 8; i++) {
-		DataRead[i] = digitalRead(DataPin[i]); // active low Input: Data[i]==0 = Belegt!
+		DataRead[i] = digitalRead(DataPin[i]);
+		// active low Input: Data[i]==0 = occupied!
 		if (!DataRead[i]) { // --> belegt!
 			DataOut[i] = DataRead[i];
 			lastOccupied[i] = millis();
 		} else {            // frei!
-			if (millis() > lastOccupied[i] + delayTime) { // delayTime abgelaufen?
+			if (millis() > lastOccupied[i] + delayTime) {
+				// delayTime abgelaufen?
 				DataOut[i] = DataRead[i];
 			}
 		}
@@ -221,9 +234,9 @@ void loop() {
 			if (DataOut[i] != lastDataOut[i]) {
 				lastDataOut[i] = DataOut[i];
 				if (DataOut[i]) {
-					LocoNet.reportSensor((uint16_t) (LNAddr + i), 0);
+					LocoNet.reportSensor((uint16_t) (firstLNAddr + i), 0);
 				} else {
-					LocoNet.reportSensor((uint16_t) (LNAddr + i), 1);
+					LocoNet.reportSensor((uint16_t) (firstLNAddr + i), 1);
 				}
 			}
 		}
@@ -255,6 +268,4 @@ void loop() {
 		}
 	}
 }   //loop
-
-
 
