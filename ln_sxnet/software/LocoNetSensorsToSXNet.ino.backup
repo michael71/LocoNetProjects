@@ -26,7 +26,7 @@
  * 
  * DESCRIPTION
  *   sends all sensor messages (received from LocoNet) in an address range from
- *   851 to 1041 to SXnet 85 to 104 
+ *   850 to 1040 to SXnet 85 to 104 
  *   channel 85, sxbis1 = 850 ...
  *   channel 85, sxbit8 = 857 etc 
  * 
@@ -51,10 +51,10 @@
 uint32_t lastUpdate = 0;
 
 /* Modify these variables to match your network */
-const byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xAA, 0xED };
-const byte ip[] = { 192, 168, 178, 100 };
-const byte gateway[] = { 192, 168, 178, 1 };
-const byte subnet[] = { 255, 255, 255, 0 };
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+byte ip[] = { 192, 168, 178, 100 };
+byte gateway[] = { 192, 168, 178, 1 };
+byte subnet[] = { 255, 255, 255, 0 };
 
 // retry connection, if not connected, after RETRY_INTERVAL milliseconds
 #define RETRY_INTERVAL   30000
@@ -70,7 +70,7 @@ IPAddress server(192, 168, 178, 29);
 
 #define MIN_SX_ADDR   85
 #define MAX_SX_ADDR   104
-#define LN_MULTIPLIER  10   // LN_ADDR = SX_ADDR + iBit   88,bit1 == 881  FIRST LN_ADDR MUST bei XX1 !!
+#define LN_MULTIPLIER  10   // LN_ADDR = SX_ADDR + (iBit -1)  88,bit1 == 880
 #define SENSOR_COMM
 byte sxData[MAX_SX_ADDR - MIN_SX_ADDR + 1]; //sx addresses 80 (=[0]) to 104 [24]
 boolean sxChanged[MAX_SX_ADDR - MIN_SX_ADDR + 1]; //sx addresses 80 (=[0]) to 104 [24]
@@ -100,9 +100,9 @@ void setup() {
 	Serial.begin(57600);
 	Serial.println(F("LocoNet Sensors -> SXnet started!!"));
 	Serial.print(F("loconet sensor addresses must be in range "));
-	Serial.print(MIN_SX_ADDR * LN_MULTIPLIER + 1 );
+	Serial.print(MIN_SX_ADDR * LN_MULTIPLIER);
 	Serial.print(" to ");
-	Serial.println(MAX_SX_ADDR * LN_MULTIPLIER + 1);
+	Serial.println(MAX_SX_ADDR * LN_MULTIPLIER);
 	Serial.print(F("Server address ="));
 	String sIP = IpAddress2String(server);
 	Serial.println(sIP);
@@ -187,8 +187,8 @@ void notifySensor(uint16_t Address, uint8_t State) {
 	Serial.print(" - ");
 	Serial.println(State ? "Active" : "Inactive");
 #endif
-	byte sxAddr = (Address -1) / LN_MULTIPLIER;
-	byte sxBit = (Address -1) - LN_MULTIPLIER * sxAddr;  // sxBit 0 ..7
+	byte sxAddr = Address / LN_MULTIPLIER;
+	byte sxBit = Address - LN_MULTIPLIER * sxAddr;  // sxBit 0 ..7
 	if ((sxAddr >= MIN_SX_ADDR) && (sxAddr <= MAX_SX_ADDR)) {
 		bitWrite(sxData[sxAddr - MIN_SX_ADDR], sxBit, State);
 		sxChanged[sxAddr - MIN_SX_ADDR] = true;
