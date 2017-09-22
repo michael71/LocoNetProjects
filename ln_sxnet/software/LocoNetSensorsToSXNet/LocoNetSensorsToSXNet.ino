@@ -27,8 +27,8 @@
  * DESCRIPTION
  *   sends all sensor messages (received from LocoNet) in an address range from
  *   851 to 1041 to SXnet 85 to 104 
- *   channel 85, sxbis1 = 850 ...
- *   channel 85, sxbit8 = 857 etc 
+ *   channel 85, sxbis1 = 851 ...
+ *   channel 85, sxbit8 = 858 etc 
  * 
  *   The Loconet RX is on arduino pin 8, the tx on arduino pin 6.
  *   
@@ -52,9 +52,9 @@ uint32_t lastUpdate = 0;
 
 /* Modify these variables to match your network */
 const byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xAA, 0xED };
-const byte ip[] = { 192, 168, 178, 100 };
-const byte gateway[] = { 192, 168, 178, 1 };
-const byte subnet[] = { 255, 255, 255, 0 };
+//const byte ip[] = { 192, 168, 178, 100 };
+//const byte gateway[] = { 192, 168, 178, 1 };
+//const byte subnet[] = { 255, 255, 255, 0 };
 
 // retry connection, if not connected, after RETRY_INTERVAL milliseconds
 #define RETRY_INTERVAL   30000
@@ -66,7 +66,8 @@ static LnBuf LnTxBuffer;
 static lnMsg *LnPacket;
 
 EthernetClient client;
-IPAddress server(192, 168, 178, 29);
+//IPAddress server(192, 168, 178, 29);
+IPAddress server(192, 168, 1, 30);
 
 #define MIN_SX_ADDR   85
 #define MAX_SX_ADDR   104
@@ -103,7 +104,7 @@ void setup() {
 	Serial.print(MIN_SX_ADDR * LN_MULTIPLIER + 1 );
 	Serial.print(" to ");
 	Serial.println(MAX_SX_ADDR * LN_MULTIPLIER + 1);
-	Serial.print(F("Server address ="));
+	Serial.print(F("Server address="));
 	String sIP = IpAddress2String(server);
 	Serial.println(sIP);
 
@@ -111,8 +112,12 @@ void setup() {
 	initLnBuf(&LnTxBuffer);
 
 	/* initialise the ethernet device */
-	Ethernet.begin(mac, ip, gateway, subnet);
+	//Ethernet.begin(mac, ip, gateway, subnet);
+  Ethernet.begin(mac);
 
+  Serial.print("own ip=");
+  Serial.println(Ethernet.localIP());
+  
 	/* connect */
 	connectToSXnet();
 
