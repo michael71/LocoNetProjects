@@ -67,7 +67,7 @@ static lnMsg *LnPacket;
 
 EthernetClient client;
 //IPAddress server(192, 168, 178, 29);
-IPAddress server(192, 168, 1, 30);
+IPAddress server(192, 168, 1, 10);
 
 #define MIN_SX_ADDR   85
 #define MAX_SX_ADDR   104

@@ -44,7 +44,7 @@
 //#define  EEPROMSIZE 2                  // 2 Byte vorsehen: Adresse und Abfallverzögerung
 
 uint16_t debug;
-const char swversion[] = "SW V01.10";
+const char swversion[] = "SW V01.11";
 const char hwversion[] = "HW V01.00";
 const char product[] = "LocoNetToti";
 
@@ -115,15 +115,19 @@ void setup() {
 }
 
 void checkSettings() {
+  Serial.print(F("checkSettings()"));
 	firstLNAddr = lncv[1];
-	if (firstLNAddr > 2047) {
+	if ((firstLNAddr > 2047) || (firstLNAddr <= 0)) {
 		firstLNAddr = DEFAULTLNADDR;
 		Serial.print(F("invalid LN-addr in lncv[1] - default "));
 		Serial.print(DEFAULTLNADDR);
 		Serial.println(F(" used"));
+	} else {
+    Serial.print(F("LN-addr in lncv[1]= "));
+    Serial.println(firstLNAddr);
 	}
 	delayTime = lncv[2];
-	if (delayTime > 2000) {
+	if ((delayTime > 2000) || (delayTime <= 0)) {
 		delayTime = DEFAULTDELAY;
 		Serial.print(F("invalid delay time in lncv[2] - default "));
 		Serial.print(DEFAULTDELAY);
