@@ -74,7 +74,9 @@ uint8_t sxRecBufPos;
 
 #define N_REC_CHAN  1   // listen to 1 channel on SXNet and transfer them to LN
 const String turnout_cmd = { "X 92" };
+const int firstTurnoutLNAddress = 921;
 const uint8_t len_turnout_cmd = turnout_cmd.length();
+uint8_t startup = 1; // set all turnout at startup of communication
 
 int recChanData;
 int oldRecChanData = -1;
@@ -147,7 +149,7 @@ void loop() {
 	if (client.available()) {
 		// get incoming byte:
 		char c = client.read();
-		
+
 		if (c != '\n') {
 			sxRecBuffer[sxRecBufPos] = c;
 			if (sxRecBufPos < SXRECBUF_LEN - 1)
@@ -164,13 +166,30 @@ void loop() {
 				if (recChanData != oldRecChanData) {
 					Serial.print("new data:");
 					Serial.println(recChanData);
+					for (uint8_t bit = 0; bit < 8; bit++) {
+						uint8_t mask = (1 << bit);
+						if ((startup) || ((recChanData & mask) != (oldRecChanData & mask))) {
+							int a = firstTurnoutLNAddress + bit;
+							if (recChanData & mask) {
+								setLNTurnout(a, 1);
+								Serial.print(F("set LNAddr"));
+								Serial.print(a);
+								Serial.println("=1");
+							} else {
+								setLNTurnout(a, 0);
+								Serial.print(F("set LNAddr"));
+								Serial.print(a);
+								Serial.println("=0");
+							}
+						}
+					}
 					oldRecChanData = recChanData;
-					// TODO send loconet turnout command
+					startup = 0;
 				}
 			}
 		}
 	}
-	
+
 	/* Check for any received loconet packets */
 	LnPacket = LocoNet.receive();
 	if (LnPacket) {
@@ -241,3 +260,24 @@ void notifySensor(uint16_t Address, uint8_t State) {
 	}
 }
 
+void setLNTurnout(int address, byte dir) {
+	sendOPC_SW_REQ(address - 1, dir, 1);
+	sendOPC_SW_REQ(address - 1, dir, 0);
+}
+
+void sendOPC_SW_REQ(int address, byte dir, byte on) {
+	lnMsg SendPacket;
+
+	int sw2 = 0x00;
+	if (dir)
+		sw2 |= B00100000;
+	if (on)
+		sw2 |= B00010000;
+	sw2 |= (address >> 7) & 0x0F;
+
+	SendPacket.data[0] = OPC_SW_REQ;
+	SendPacket.data[1] = address & 0x7F;
+	SendPacket.data[2] = sw2;
+	//Serial.println("TX OPC_SW_REQ");
+	LocoNet.send(&SendPacket);
+}
