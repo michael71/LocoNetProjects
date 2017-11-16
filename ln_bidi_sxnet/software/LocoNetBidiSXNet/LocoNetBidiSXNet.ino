@@ -72,18 +72,19 @@ static lnMsg *LnPacket;
 char sxRecBuffer[SXRECBUF_LEN];
 uint8_t sxRecBufPos;
 
-#define N_REC_CHAN  1   // listen to 1 channel on SXNet and transfer them to LN
-const String turnout_cmd = { "X 92" };
-const int firstTurnoutLNAddress = 921;
-const uint8_t len_turnout_cmd = turnout_cmd.length();
-uint8_t startup = 1; // set all turnout at startup of communication
+#define N_REC_CHAN  4   // listen to 1 channel on SXNet and transfer them to LN
+const String turnout_cmd[N_REC_CHAN] = { "X 91", "X 92", "X 93", "X 94" };
+const int firstTurnoutLNAddress[N_REC_CHAN] = { 911, 921, 931, 941};
+const uint8_t len_turnout_cmd[N_REC_CHAN] = { 4, 4, 4, 4}; //turnout_cmd.length();
+uint8_t startUp[N_REC_CHAN] = { 1, 1, 1, 1}; // set all turnout at startup of communication
+// and request all turnout channels every 30 secs  
+uint32_t turnoutRequestTime[N_REC_CHAN] = { 0, 0, 0, 0};
 
-int recChanData;
-int oldRecChanData = -1;
+int recChanData[N_REC_CHAN];
+int oldRecChanData[N_REC_CHAN] = { -1, -1, -1, -1};
 
 EthernetClient client;
-IPAddress server(192, 168, 178, 29);
-//IPAddress server(192, 168, 1, 10);
+IPAddress server;
 
 #define MIN_SX_ADDR   85
 #define MAX_SX_ADDR   104
@@ -112,29 +113,41 @@ String IpAddress2String(const IPAddress& ipAddress) {
 void setup() {
 	/* First initialize the LocoNet interface */
 	LocoNet.init();
+ 
+  /* initialise the ethernet device (DHCP) */
+  Ethernet.begin(mac);
 
+  // figure out if we use home network or ibmklub network
+  String myIP = IpAddress2String(Ethernet.localIP());
+  if (myIP.indexOf("192.168.178") == 0) {
+    // home ip range
+    server = IPAddress(192, 168, 178, 29);  // home sx3 server
+  } else {
+    // ibm klub ip range
+    server = IPAddress(192, 168, 1, 10);  // ibmklub sx3 server
+  }
+  
 	/* Configure the serial port for 57600 baud */
 	Serial.begin(57600);
-	Serial.println(F("LocoNet Sensors -> SXnet started!!"));
+	Serial.println(F("LocoNet BiDi <-> SXnet started!!"));
 	Serial.print(F("loconet sensor addresses must be in range "));
 	Serial.print(MIN_SX_ADDR * LN_MULTIPLIER + 1);
 	Serial.print(" to ");
 	Serial.println(MAX_SX_ADDR * LN_MULTIPLIER + 1);
+  Serial.print(F("My address="));
+  Serial.println(myIP);
 	Serial.print(F("Server address="));
 	String sIP = IpAddress2String(server);
 	Serial.println(sIP);
-	Serial.print(F("Turnout sx-addr="));
-	Serial.println(turnout_cmd.substring(2));
+  Serial.print(F("Turnout sx-addr="));
+  for (uint8_t i=0; i <N_REC_CHAN; i++) {
+	    Serial.print(turnout_cmd[i].substring(2));
+      if (i != (N_REC_CHAN -1)) Serial.print(", ");
+  }
+  Serial.println();
 
 	/*Initialize a LocoNet packet buffer to buffer bytes from the PC */
 	initLnBuf(&LnTxBuffer);
-
-	/* initialise the ethernet device */
-	//Ethernet.begin(mac, ip, gateway, subnet);
-	Ethernet.begin(mac);
-
-	Serial.print("own ip=");
-	Serial.println(Ethernet.localIP());
 
 	sxRecBuffer[0] = '\0';
 	sxRecBufPos = 0;
@@ -143,6 +156,43 @@ void setup() {
 	connectToSXnet();
 
 }
+
+/* set an LN turnout, if the data bit has changed OR in startup phase
+ *  
+ */
+void setLNTurnouts(int firstA, int d, int oldD, uint8_t stUP) {
+
+  for (uint8_t bit = 0; bit < 8; bit++) {
+    uint8_t mask = (1 << bit);
+    if ((stUP) || ((d & mask) != (oldD & mask))) {
+      int a = firstA + bit;
+      if (d & mask) {
+         setLNTurnout(a, 1);
+         Serial.print(F("set LNAddr"));
+         Serial.print(a);
+         Serial.println("=1");
+      } else {
+         setLNTurnout(a, 0);
+         Serial.print(F("set LNAddr"));
+         Serial.print(a);
+         Serial.println("=0");
+      }
+    }
+  }
+}
+
+void requestTurnoutStates() {
+  for (uint8_t i = 0; i < N_REC_CHAN; i++) {
+    if ( ((millis() - turnoutRequestTime[i] ) > 30000)       
+         && client.connected()) {
+         client.print("R ");
+         client.println(turnout_cmd[i].substring(2));
+         Serial.print("R ");
+         Serial.println(turnout_cmd[i].substring(2)); 
+         turnoutRequestTime[i] = millis(); 
+    }
+  }
+}   
 
 void loop() {
 
@@ -158,35 +208,27 @@ void loop() {
 		} else { //command completed
 			sxRecBuffer[sxRecBufPos] = 0;
 			String s(sxRecBuffer);
+      Serial.println(s);
 			sxRecBuffer[0] = '\0';  // reset buffer
 			sxRecBufPos = 0;
-			if (s.startsWith(turnout_cmd)) {
-				// matching address, get value
-				recChanData = s.substring(len_turnout_cmd).toInt();
-				if (recChanData != oldRecChanData) {
-					Serial.print("new data:");
-					Serial.println(recChanData);
-					for (uint8_t bit = 0; bit < 8; bit++) {
-						uint8_t mask = (1 << bit);
-						if ((startup) || ((recChanData & mask) != (oldRecChanData & mask))) {
-							int a = firstTurnoutLNAddress + bit;
-							if (recChanData & mask) {
-								setLNTurnout(a, 1);
-								Serial.print(F("set LNAddr"));
-								Serial.print(a);
-								Serial.println("=1");
-							} else {
-								setLNTurnout(a, 0);
-								Serial.print(F("set LNAddr"));
-								Serial.print(a);
-								Serial.println("=0");
-							}
-						}
-					}
-					oldRecChanData = recChanData;
-					startup = 0;
-				}
-			}
+      // check, if this command is for one of "our" LN Turnouts
+      for (uint8_t i = 0; i < N_REC_CHAN; i++) {
+        if (s.startsWith(turnout_cmd[i])) {
+				  // matching address, get value
+				  recChanData[i] = s.substring(len_turnout_cmd[i]).toInt();
+				  if (recChanData[i] != oldRecChanData[i]) {
+            // send only when data has changed
+					  Serial.print("new data:");
+					  Serial.println(recChanData[i]);
+					  setLNTurnouts(firstTurnoutLNAddress[i], recChanData[i], 
+					     oldRecChanData[i], startUp[i]);
+					  oldRecChanData[i] = recChanData[i];
+				  }
+          startUp[i] = 0;  // reset startUp
+			  }
+        
+      }  // end for(0..3)
+      
 		}
 	}
 
@@ -231,6 +273,9 @@ void loop() {
 		} // i 0..N_ADDR
 	}  // update-interval
 
+  // check, if we need to request the turnout channels
+  requestTurnoutStates();
+  
 	// check connection state and try to reconnect, if not connected
 	if (!client.connected()) {
 		Serial.println("disconnected.");

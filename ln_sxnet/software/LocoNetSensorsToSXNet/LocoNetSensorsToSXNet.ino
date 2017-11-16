@@ -66,8 +66,7 @@ static LnBuf LnTxBuffer;
 static lnMsg *LnPacket;
 
 EthernetClient client;
-//IPAddress server(192, 168, 178, 29);
-IPAddress server(192, 168, 1, 10);
+IPAddress server;
 
 #define MIN_SX_ADDR   85
 #define MAX_SX_ADDR   104
@@ -97,6 +96,16 @@ void setup() {
 	/* First initialize the LocoNet interface */
 	LocoNet.init();
 
+  /* initialise the ethernet device */
+  Ethernet.begin(mac);
+  String myIP = IpAddress2String(Ethernet.localIP());
+  if (myIP.indexOf("192.168.178") == 0) {
+    // home ip range
+    server = IPAddress(192, 168, 178, 29);  // home sx3 server
+  } else {
+    // ibm klub ip range
+    server = IPAddress(192, 168, 1, 10);  // ibmklub sx3 server
+  }
 	/* Configure the serial port for 57600 baud */
 	Serial.begin(57600);
 	Serial.println(F("LocoNet Sensors -> SXnet started!!"));
@@ -104,19 +113,14 @@ void setup() {
 	Serial.print(MIN_SX_ADDR * LN_MULTIPLIER + 1 );
 	Serial.print(" to ");
 	Serial.println(MAX_SX_ADDR * LN_MULTIPLIER + 1);
+  Serial.print(F("My address="));
+  Serial.println(myIP);
 	Serial.print(F("Server address="));
 	String sIP = IpAddress2String(server);
 	Serial.println(sIP);
 
 	/*Initialize a LocoNet packet buffer to buffer bytes from the PC */
 	initLnBuf(&LnTxBuffer);
-
-	/* initialise the ethernet device */
-	//Ethernet.begin(mac, ip, gateway, subnet);
-  Ethernet.begin(mac);
-
-  Serial.print("own ip=");
-  Serial.println(Ethernet.localIP());
   
 	/* connect */
 	connectToSXnet();
