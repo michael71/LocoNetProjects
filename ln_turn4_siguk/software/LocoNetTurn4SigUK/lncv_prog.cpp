@@ -32,9 +32,9 @@
  ******************************************************************************/
 
 #include "lncv_prog.h"
-#include <HardwareSerial.h>
+//#include <HardwareSerial.h>
+//extern HardwareSerial Serial;
 
-extern HardwareSerial Serial;
 extern lnMsg *LnPacket;
 extern uint16_t debug;
 
