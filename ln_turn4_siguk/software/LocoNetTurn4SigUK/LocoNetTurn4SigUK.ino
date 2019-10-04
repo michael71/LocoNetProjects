@@ -1,10 +1,11 @@
 /*
  * ******************************************
- * LocoNetTurnout8
+ * LocoNetTurn4SigUK
  * 
- * Control 8 Tortoise turnouts via LocoNet
+ * Control 4 Tortoise turnouts plus
+ * 2 UK Signals (with feather) via LocoNet
  * 
- * Michael Blank, 12.11.2017
+ * Michael Blank, 2.10.2019
  * 
  * Startup of LocoNet ?? initial state of turnouts ?
  * 
@@ -17,6 +18,7 @@
 #include "Turnouts.h"
 #include "lncv_prog.h"
 #include "config.h"      // contains article number and lncv count
+#include "Signal.h"
 
 #define  NONUMBER    (10000)
 #define  CLOSED   (0x30)   // used in LACK
@@ -34,6 +36,13 @@ Turnouts turnouts(A4, A3, A2, A1);
 
 #define N_TURNOUT  (4)
 uint16_t t_addr[N_TURNOUT];
+
+Signal sig1(0);
+Signal sig2(1);
+uint16_t sig1_addr[3] = {0,0,0};
+uint16_t sig1_feath_inv = 0;
+uint16_t sig2_addr[3] = {0,0,0};
+uint16_t sig2_feath_inv = 0;
 
 uint16_t lastAddr, debug;
 
@@ -60,29 +69,46 @@ void finishProgramming(void);
 void setup() {
 	// First initialize the LocoNet interface
 	LocoNet.init();
+
+	// then turnout and signal outputs
 	turnouts.init(ENABLE_PIN);
+	sig1.init();
+	sig2.init();
 
 	// Configure the serial port for 57600 baud
-	Serial.begin(57600);
+	Serial.begin(115200);
 
+	// some debug output to serial port
 	Serial.println(F("LocoNetTurn4SigUK"));
 	Serial.print(F("Art# "));
 	uint32_t longArticleNumber = (uint32_t) ARTNR * 10;
 	Serial.println(longArticleNumber);
 	Serial.println(F("SW V01.00"));
 	Serial.println(F("HW V01.00"));
+
 	time0 = millis();
 
-	readLNCVsFromEEPROM();   // read initial lncv values
+	// read initial lncv values
+	readLNCVsFromEEPROM();
 	printLNCVs();
 	checkSettings();
 
+	// init turnout loconet addresses
 	// try to read current state from LN
-
 	for (int i = 0; i < N_TURNOUT; i++) { 
         t_addr[i] = lncv[i+1];
 		LocoNet.reportSwitch(t_addr[i]);
 	}
+
+	sig1_addr[0] = lncv[5];
+	sig1_addr[1] = lncv[6];   // set to 0 for signal with only 2 aspects
+	sig1_addr[2] = lncv[7];   // set to 0 for signal without feather
+	sig1_feath_inv = lncv[8];
+
+	sig2_addr[0] = lncv[9];
+	sig2_addr[1] = lncv[10];
+	sig2_addr[2] = lncv[11];
+	sig2_feath_inv = lncv[12];
 
 	digitalWrite(PROGLED, LOW);
 	pinMode(PROGLED, OUTPUT);
@@ -93,7 +119,7 @@ void setup() {
 
 void checkSettings() {
 
-    for (uint8_t i=0; i <= 12; i++) {
+    for (uint8_t i=0; i <= LNCV_MAX_USED ; i++) {
         if ((lncv[i] < 0) || (lncv[i] > 2047)) {
 		   Serial.print(F("invalid LN-addr in lncv["));
            Serial.print(i);
@@ -218,9 +244,10 @@ void notifySwitchRequest(uint16_t Address, uint8_t Output, uint8_t Direction) {
 	Serial.print(" (1=Cl 0=Thr) ");
 	Serial.println(Output ? "On" : "Off");
 
-	if (!Output)
-		return;  // ignore "off command
+	//if (!Output)
+	//	return;  // ignore "off command
 	matchAndSetTurnout(Address, Direction);
+	matchAndSetSignals(Address, Direction);
 }
 
 void matchAndSetTurnout(uint16_t a, uint8_t d) {
@@ -238,6 +265,32 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 		}
 	}
 }
+
+
+ void matchAndSetSignals(uint16_t a, uint8_t d) {
+
+	if (d != 0) {
+		d = 1;
+	}
+
+	if (a == sig1_addr[0]) {
+		sig1.setRG(d);
+	} else if (a == sig1_addr[1]) {
+		sig1.setY(d);
+	} else if (a ==   sig1_addr[2]) {
+		sig1.setFeather(d);
+	}
+
+	if (a == sig2_addr[0]) {
+		sig2.setRG(d);
+	} else if (a == sig2_addr[1]) {
+		sig2.setY(d);
+	} else if (a ==   sig2_addr[2]) {
+		sig2.setFeather(d);
+	}
+	return;
+}
+
 
 // This call-back function is called from LocoNet.processSwitchSensorMessage
 // for all Switch Output Report messages

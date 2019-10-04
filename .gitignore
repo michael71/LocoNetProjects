@@ -33,3 +33,7 @@ Release/
 *.exe
 *.out
 *.app
+
+#
+.private/
+temp*

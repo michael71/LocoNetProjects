@@ -1,0 +1,31 @@
+Partlist
+
+Exported from RT-Weiche-Signal.sch at 17.12.16 20:11
+
+EAGLE Version 7.7.0 Copyright (c) 1988-2016 CadSoft
+
+Assembly variant: RT-Weiche-Signal mit A2982 (Signale 12V: gemeinsame Kathode/Ground)
+
+Part     Value          Device       Package      
+
+C1       0.1nF / 50V    C-EUC0805K   C0805K       
+C2       0.1nF / 50V    C-EUC0805K   C0805K       
+C3       0.1nF / 50V    C-EUC0805K   C0805K       
+IC1      7809DT         7809DT       TO252       
+IC2      UDN2982SLW     UDN2982SLW   SO20W       
+J1                      MA20-1       Steckerleiste 2.54mm, 20 polig
+J2                      MA20-1       Steckerleiste 2.54mm, 20 polig
+LB1909-1 LB1909MC       LB1909SOIC10 MSOIC10-1MM 
+LB1909-2 LB1909MC       LB1909SOIC10 MSOIC10-1MM 
+R1       nicht bestückt                                    
+R2       nicht bestückt                                    
+R3       nicht bestückt                                    
+R4       nicht bestückt                                    
+R5       nicht bestückt                                    
+R6       nicht bestückt                                    
+R7       nicht bestückt                                    
+R8       nicht bestückt                                    
+R20      4.7k           R-EU_R0805W  R0805W 
+SJ1                     SJ2W        jumper in position "2982"
+SJ2                     SJ2W        jumper in position "2982"
+SJ4                     SJ          jumper NICHT bestückt

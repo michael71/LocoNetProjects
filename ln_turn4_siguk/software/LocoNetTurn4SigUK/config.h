@@ -11,9 +11,10 @@
 // article number: 51120 - only first 4 digits used
 #define ARTNR   5112     // this is fixed and assigned to Turn4SigUK HW
 #define LNCV_COUNT (16)
+#define LNCV_MAX_USED (12)
 #define LNCV_DEBUG (LNCV_COUNT - 1)
 
-/* store 12 LNCVs:
+/* store 16 LNCVs:
   0  module number (to be able to distinguish between modules with identical art.no.)
   1  turnout 1 address
   2  turnout 2 address
