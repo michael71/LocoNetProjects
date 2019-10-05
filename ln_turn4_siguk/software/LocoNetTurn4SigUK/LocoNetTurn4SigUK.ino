@@ -83,7 +83,7 @@ void setup() {
 	Serial.print(F("Art# "));
 	uint32_t longArticleNumber = (uint32_t) ARTNR * 10;
 	Serial.println(longArticleNumber);
-	Serial.println(F("SW V01.00"));
+	Serial.println(F("SW V01.01"));
 	Serial.println(F("HW V01.00"));
 
 	time0 = millis();
@@ -277,16 +277,26 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 		sig1.setRG(d);
 	} else if (a == sig1_addr[1]) {
 		sig1.setY(d);
-	} else if (a ==   sig1_addr[2]) {
-		sig1.setFeather(d);
+	} else if (a == sig1_addr[2]) {
+		if (sig1_addr[3] == 0)
+		{
+		    sig1.setFeather(d);
+		} else {
+			sig1.setFeather(~d);
+		}
 	}
 
 	if (a == sig2_addr[0]) {
 		sig2.setRG(d);
 	} else if (a == sig2_addr[1]) {
 		sig2.setY(d);
-	} else if (a ==   sig2_addr[2]) {
-		sig2.setFeather(d);
+	} else if (a == sig2_addr[2]) {
+		if (sig2_addr[3] == 0)
+		{
+			sig2.setFeather(d);
+		} else {
+			sig2.setFeather(~d);
+		}
 	}
 	return;
 }

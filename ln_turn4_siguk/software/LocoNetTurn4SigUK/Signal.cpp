@@ -70,7 +70,11 @@ void Signal::setY(uint8_t value) {
 }
 void Signal::setFeather(uint8_t value) {
 	// enable feather (will NOT be shown when RED is on)
-	state_f = value;
+	if (value) {
+	    state_f = 1;
+	} else {
+		state_f = 0;
+	}
 	calcStateAndSet();
 }
 
