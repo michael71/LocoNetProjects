@@ -45,6 +45,8 @@ uint16_t sig2_addr[3] = {0,0,0};
 uint16_t sig2_feath_inv = 0;
 
 uint16_t lastAddr, debug;
+bool startup = true;
+uint8_t startupCount = 0;
 
 extern uint16_t lncv[];   // values of LNCVs
 extern LocoNetCVClass lnCV;
@@ -83,7 +85,7 @@ void setup() {
 	Serial.print(F("Art# "));
 	uint32_t longArticleNumber = (uint32_t) ARTNR * 10;
 	Serial.println(longArticleNumber);
-	Serial.println(F("SW V01.01"));
+	Serial.println(F("SW V01.03"));
 	Serial.println(F("HW V01.00"));
 
 	time0 = millis();
@@ -94,10 +96,8 @@ void setup() {
 	checkSettings();
 
 	// init turnout loconet addresses
-	// try to read current state from LN
 	for (int i = 0; i < N_TURNOUT; i++) { 
         t_addr[i] = lncv[i+1];
-		LocoNet.reportSwitch(t_addr[i]);
 	}
 
 	sig1_addr[0] = lncv[5];
@@ -232,6 +232,17 @@ void loop() {
 
 	}
 
+	if (startup) {
+		startupCount++;
+		if (startupCount > LNCV_MAX_USED) {
+			startup = false;
+		}
+		if ((lncv[startupCount] > 1) && (lncv[startupCount] < 2028)) {
+			LocoNet.reportSwitch(lncv[startupCount]);
+			delay(5);
+		}
+	}
+
 }   // end loop
 
 // This call-back function is called from LocoNet.processSwitchSensorMessage
@@ -258,9 +269,9 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 	for (int i = 0; i < N_TURNOUT; i++) {
 		if (a == t_addr[i]) {
 			turnouts.set(i, d);
-			Serial.print("set T[");
+			Serial.print("set T");
 			Serial.print(i);
-			Serial.print("]=");
+			Serial.print("=");
 			Serial.println(d);
 		}
 	}
@@ -282,7 +293,8 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 		{
 		    sig1.setFeather(d);
 		} else {
-			sig1.setFeather(~d);
+            uint8_t df = (d == 0) ? 0 : 1;
+			sig1.setFeather(df);
 		}
 	}
 
@@ -295,12 +307,37 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 		{
 			sig2.setFeather(d);
 		} else {
-			sig2.setFeather(~d);
+			uint8_t df = (d == 0) ? 0 : 1;
+			sig1.setFeather(df);
 		}
 	}
 	return;
 }
 
+
+ void notifyLongAck(uint8_t d1, uint8_t d2) {
+	 if (lastAddr != 0) {
+		 Serial.print("addr=");
+		 Serial.print(lastAddr);
+		 Serial.print(" d1=");
+		 Serial.print(d1,HEX);
+		 Serial.print(" d2=");
+		 Serial.println(d2,HEX);
+
+		 Serial.print(lastAddr);
+
+		 if (d2 & (uint8_t)0x40) {
+			 Serial.println(" closed");
+			 matchAndSetTurnout(lastAddr, 0);
+			 matchAndSetSignals(lastAddr, 0);
+		 } else {
+			 Serial.println(" thrown");
+			 matchAndSetTurnout(lastAddr, 1);
+			 matchAndSetSignals(lastAddr, 1);
+		 }
+	 }
+	 lastAddr=0; //reset to "unknown"
+ }
 
 // This call-back function is called from LocoNet.processSwitchSensorMessage
 // for all Switch Output Report messages
@@ -331,10 +368,15 @@ void notifySwitchState(uint16_t Address, uint8_t Output, uint8_t Direction) {
 	Serial.print("Switch State: ");
 	lastAddr = Address;  // for later user in LACK msg
 	lasttime = millis(); // store time also
-	Serial.print(Address, DEC);
+	Serial.println(Address, DEC);
+	/* no info in the following bytes:
 	Serial.print(':');
-	Serial.print(Direction ? "Closed" : "Thrown");
+	//Serial.print(Direction ? "Closed" : "Thrown");
+    Serial.print("dir=");
+    Serial.print(Direction);
 	Serial.print(" - ");
-	Serial.println(Output ? "On" : "Off");
+	//Serial.println(Output ? "On" : "Off");
+    Serial.print("out=");
+    Serial.println(Output);  */
 }
 

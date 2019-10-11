@@ -45,8 +45,12 @@ void Signal::calcStateAndSet() {
 		// red
 		state = 0;
 	} else if (state_y == 0) {
-		// green
-		state = 1;
+		// green or green with feather
+		if (state_f == 0) {
+			state = 1;
+		} else {
+			state = 4;
+		}
 	} else {
 		// yellow or yellow with feather
 		if (state_f == 0) {
@@ -70,6 +74,8 @@ void Signal::setY(uint8_t value) {
 }
 void Signal::setFeather(uint8_t value) {
 	// enable feather (will NOT be shown when RED is on)
+    Serial.print("feath=");
+    Serial.println(value);
 	if (value) {
 	    state_f = 1;
 	} else {
@@ -84,6 +90,7 @@ void Signal::setFeather(uint8_t value) {
 // value 1 = GREEN
 // value 2 = YELLOW
 // value 3 = Feather & YELLOW
+// value 4 = Feather & GREEN
 
 void Signal::set(uint8_t value) {
 	switch (value) {
@@ -114,6 +121,13 @@ void Signal::set(uint8_t value) {
 		fin_state[2] = 16;
 		fin_state[3] = 16;
 		state = 3;
+		break;
+    case 4:
+		fin_state[0] = 0;
+		fin_state[1] = 16;
+		fin_state[2] = 0;
+		fin_state[3] = 16;
+		state = 4;
 		break;
 	//default:
 		// do nothing
