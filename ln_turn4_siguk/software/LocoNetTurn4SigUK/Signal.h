@@ -29,19 +29,19 @@ Signal.h
 #include <WString.h>
 #include <inttypes.h>
 
-#define N_ASPECTS     4    // maximum 4 aspects
+#define N_LEDS     4    // maximum 4 LEDs
 
 class Signal {
    
 public:
     Signal(uint8_t);  // 4 aspect signal
            // red, green, yellow, y+feather
-    //void process(void);  // needed for fade effects
-
+    void process(void);  // needed for fade effects
+    uint8_t act_state[N_LEDS];  // actual (analog) value of pin
     void init(void);
     void setRG(uint8_t value);  // set red or green (first ln-address)
     void setY(uint8_t value);   // set yellow (second ln-address)
-    void setFeather(uint8_t value);  // enable feather (will NOT be shown when RED is on)
+    void setFeather(uint8_t value, uint8_t inverted);  // enable feather (will NOT be shown when RED is on)
 
 
 private:
@@ -50,14 +50,14 @@ private:
     void output(void);   // set ports
 
     uint8_t number;   // signal A (=0) or B (=1)
-    uint8_t act_state[N_ASPECTS];  // actual (analog) value of pin
-    uint8_t fin_state[N_ASPECTS];
+
+    uint8_t fin_state[N_LEDS];
     uint8_t state;  // contains last value of command = last known signal state
     uint32_t mytimer = 0;
 
     uint8_t state_rg = 0;
     uint8_t state_y = 0;
-    uint8_t state_f = 0;
+    uint8_t state_feather = 0;
 };
 
 #endif /* SIGNAL_H_ */

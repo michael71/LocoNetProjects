@@ -18,6 +18,7 @@
 #include "Turnouts.h"
 #include "lncv_prog.h"
 #include "config.h"      // contains article number and lncv count
+#include "signal_def.h"
 #include "Signal.h"
 
 #define  NONUMBER    (10000)
@@ -37,8 +38,8 @@ Turnouts turnouts(A4, A3, A2, A1);
 #define N_TURNOUT  (4)
 uint16_t t_addr[N_TURNOUT];
 
-Signal sig1(0);
-Signal sig2(1);
+Signal sig1(0);   // A0, 12, 11, 10
+Signal sig2(1);   //  9,  5,  7,  3
 uint16_t sig1_addr[3] = {0,0,0};
 uint16_t sig1_feath_inv = 0;
 uint16_t sig2_addr[3] = {0,0,0};
@@ -46,7 +47,7 @@ uint16_t sig2_feath_inv = 0;
 
 uint16_t lastAddr, debug;
 bool startup = true;
-uint8_t startupCount = 0;
+uint8_t startupCount = 0, startupDelay = 10;
 
 extern uint16_t lncv[];   // values of LNCVs
 extern LocoNetCVClass lnCV;
@@ -70,7 +71,7 @@ void finishProgramming(void);
 /*******************************************************************/
 void setup() {
 	// First initialize the LocoNet interface
-	LocoNet.init();
+	LocoNet.init();  // uses pins 6 and 8
 
 	// then turnout and signal outputs
 	turnouts.init(ENABLE_PIN);
@@ -85,46 +86,74 @@ void setup() {
 	Serial.print(F("Art# "));
 	uint32_t longArticleNumber = (uint32_t) ARTNR * 10;
 	Serial.println(longArticleNumber);
-	Serial.println(F("SW V01.03"));
+	Serial.println(F("SW V01.10"));
 	Serial.println(F("HW V01.00"));
 
 	time0 = millis();
+	randomSeed(analogRead(6));
 
-	// read initial lncv values
-	readLNCVsFromEEPROM();
-	printLNCVs();
-	checkSettings();
 
-	// init turnout loconet addresses
-	for (int i = 0; i < N_TURNOUT; i++) { 
-        t_addr[i] = lncv[i+1];
-	}
+	initLncv();
 
-	sig1_addr[0] = lncv[5];
-	sig1_addr[1] = lncv[6];   // set to 0 for signal with only 2 aspects
-	sig1_addr[2] = lncv[7];   // set to 0 for signal without feather
-	sig1_feath_inv = lncv[8];
+	startupDelay = random(10,30);
 
-	sig2_addr[0] = lncv[9];
-	sig2_addr[1] = lncv[10];
-	sig2_addr[2] = lncv[11];
-	sig2_feath_inv = lncv[12];
+
+
 
 	digitalWrite(PROGLED, LOW);
 	pinMode(PROGLED, OUTPUT);
 
 	progBtn.attachLongPressStart(toggleEnableProgramming);
 	progBtn.setPressTicks(PROG_ACTIVATE_TIME);
+
+	setupTimer();
 }
 
+void initLncv() {
+	// read initial lncv values
+		readLNCVsFromEEPROM();
+		printLNCVs();
+		checkSettings();
+		// init turnout loconet addresses
+			for (int i = 0; i < N_TURNOUT; i++) {
+				t_addr[i] = lncv[i+1];
+			}
+
+			sig1_addr[0] = lncv[5];
+			sig1_addr[1] = lncv[6];   // set to 0 for signal with only 2 aspects
+			sig1_addr[2] = lncv[7];   // set to 0 for signal without feather
+			sig1_feath_inv = lncv[8];
+
+			sig2_addr[0] = lncv[9];
+			sig2_addr[1] = lncv[10];
+			sig2_addr[2] = lncv[11];
+			sig2_feath_inv = lncv[12];
+
+}
+void setupTimer() {
+	//set timer2 interrupt at 8kHz
+	TCCR2A = 0;// set entire TCCR2A register to 0
+	TCCR2B = 0;// same for TCCR2B
+	TCNT2  = 0;//initialize counter value to 0
+	// set compare match register for 8khz increments
+	OCR2A = 249;// = (16*10^6) / (8000*8) - 1 (must be <256)
+	// turn on CTC mode
+	TCCR2A |= (1 << WGM21);
+	// Set CS21 bit for 8 prescaler
+	TCCR2B |= (1 << CS21);
+	// enable timer compare interrupt
+	TIMSK2 |= (1 << OCIE2A);
+
+	sei();//allow interrupts */
+}
 void checkSettings() {
 
-    for (uint8_t i=0; i <= LNCV_MAX_USED ; i++) {
-        if ((lncv[i] < 0) || (lncv[i] > 2047)) {
-		   Serial.print(F("invalid LN-addr in lncv["));
-           Serial.print(i);
-           Serial.println(F("]"));
-	   }
+	for (uint8_t i=0; i <= LNCV_MAX_USED ; i++) {
+		if ((lncv[i] < 0) || (lncv[i] > 2047)) {
+			Serial.print(F("invalid LN-addr in lncv["));
+			Serial.print(i);
+			Serial.println(F("]"));
+		}
 	}	
 }
 
@@ -147,7 +176,7 @@ void printLNCVs() {
 	Serial.print(',');
 	Serial.println(lncv[6]);
 
-    Serial.print(F("7,8   sig1 feather: "));
+	Serial.print(F("7,8   sig1 feather: "));
 	Serial.print(lncv[7]);
 	Serial.print(',');
 	Serial.println(lncv[8]);
@@ -156,13 +185,13 @@ void printLNCVs() {
 	Serial.print(lncv[9]);
 	Serial.print(',');
 	Serial.println(lncv[10]);
- 
-    Serial.print(F("11,12 sig2 feather: "));
+
+	Serial.print(F("11,12 sig2 feather: "));
 	Serial.print(lncv[11]);
 	Serial.print(',');
 	Serial.println(lncv[12]);
 
-    Serial.println(F("13,14 not used."));
+	Serial.println(F("13,14 not used."));
 
 	Serial.print(LNCV_DEBUG);   // 15
 	Serial.print(F("    debug = "));
@@ -191,9 +220,10 @@ void finishProgramming() {
 	digitalWrite(PROGLED, LOW);
 
 	Serial.print(F("End Programing Mode.\n"));
-	printLNCVs();
 
-	checkSettings();
+    initLncv();  // read addresses
+    startup = true;
+    startupCount = 0;  // re-read state of address from loconet
 }
 
 //******************************************************************************************
@@ -217,6 +247,9 @@ void loop() {
 		blinkLEDtick();
 	}
 
+	sig1.process();
+	sig2.process();
+
 	uint8_t packetConsumed;
 
 	LnPacket = LocoNet.receive();
@@ -232,7 +265,8 @@ void loop() {
 
 	}
 
-	if (startup) {
+	// after ten seconds, start with state requests for all used LN addresses
+	if (startup && (millis() > (startupDelay * 1000)) ) {
 		startupCount++;
 		if (startupCount > LNCV_MAX_USED) {
 			startup = false;
@@ -278,7 +312,7 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 }
 
 
- void matchAndSetSignals(uint16_t a, uint8_t d) {
+void matchAndSetSignals(uint16_t a, uint8_t d) {
 
 	if (d != 0) {
 		d = 1;
@@ -289,13 +323,7 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 	} else if (a == sig1_addr[1]) {
 		sig1.setY(d);
 	} else if (a == sig1_addr[2]) {
-		if (sig1_addr[3] == 0)
-		{
-		    sig1.setFeather(d);
-		} else {
-            uint8_t df = (d == 0) ? 0 : 1;
-			sig1.setFeather(df);
-		}
+		sig1.setFeather(d, sig1_feath_inv);
 	}
 
 	if (a == sig2_addr[0]) {
@@ -303,41 +331,35 @@ void matchAndSetTurnout(uint16_t a, uint8_t d) {
 	} else if (a == sig2_addr[1]) {
 		sig2.setY(d);
 	} else if (a == sig2_addr[2]) {
-		if (sig2_addr[3] == 0)
-		{
-			sig2.setFeather(d);
-		} else {
-			uint8_t df = (d == 0) ? 0 : 1;
-			sig1.setFeather(df);
-		}
+     	sig2.setFeather(d, sig2_feath_inv);
 	}
 	return;
 }
 
 
- void notifyLongAck(uint8_t d1, uint8_t d2) {
-	 if (lastAddr != 0) {
-		 Serial.print("addr=");
-		 Serial.print(lastAddr);
-		 Serial.print(" d1=");
-		 Serial.print(d1,HEX);
-		 Serial.print(" d2=");
-		 Serial.println(d2,HEX);
+void notifyLongAck(uint8_t d1, uint8_t d2) {
+	if (lastAddr != 0) {
+		//Serial.print("addr=");
+		//Serial.print(lastAddr);
+		// Serial.print(" d1=");
+		//Serial.print(d1,HEX);
+		//Serial.print(" d2=");
+		// Serial.println(d2,HEX);
 
-		 Serial.print(lastAddr);
+		Serial.print(lastAddr);
 
-		 if (d2 & (uint8_t)0x40) {
-			 Serial.println(" closed");
-			 matchAndSetTurnout(lastAddr, 0);
-			 matchAndSetSignals(lastAddr, 0);
-		 } else {
-			 Serial.println(" thrown");
-			 matchAndSetTurnout(lastAddr, 1);
-			 matchAndSetSignals(lastAddr, 1);
-		 }
-	 }
-	 lastAddr=0; //reset to "unknown"
- }
+		if (d2 & (uint8_t)0x40) {
+			Serial.println(" closed");
+			matchAndSetTurnout(lastAddr, 0);
+			matchAndSetSignals(lastAddr, 0);
+		} else {
+			Serial.println(" thrown");
+			matchAndSetTurnout(lastAddr, 1);
+			matchAndSetSignals(lastAddr, 1);
+		}
+	}
+	lastAddr=0; //reset to "unknown"
+}
 
 // This call-back function is called from LocoNet.processSwitchSensorMessage
 // for all Switch Output Report messages
@@ -378,5 +400,55 @@ void notifySwitchState(uint16_t Address, uint8_t Output, uint8_t Direction) {
 	//Serial.println(Output ? "On" : "Off");
     Serial.print("out=");
     Serial.println(Output);  */
+}
+
+ISR(TIMER2_COMPA_vect){//timer2 interrupt 8kHz
+
+	static uint8_t fast = 0;
+	fast++;
+	uint8_t v = fast >> 4;
+	// counting with higher 4 bits of "fast" only
+	if (sig1.act_state[0] > v) {
+		SIG_A_R_ (HIGH);
+	} else {
+		SIG_A_R_ (LOW);
+	}
+	if (sig1.act_state[1] > v) {
+		SIG_A_G_ (HIGH);
+	} else {
+		SIG_A_G_ (LOW);
+	}
+	if (sig1.act_state[2] > v) {
+		SIG_A_Y_ (HIGH);
+	} else {
+		SIG_A_Y_ (LOW);
+	}
+	if (sig1.act_state[3] > v) {
+		SIG_A_4_ (HIGH);
+	} else {
+		SIG_A_4_ (LOW);
+	}
+
+	// signal b
+	if (sig2.act_state[0] > v) {
+		SIG_B_R_ (HIGH);
+	} else {
+		SIG_B_R_ (LOW);
+	}
+	if (sig2.act_state[1] > v) {
+		SIG_B_G_ (HIGH);
+	} else {
+		SIG_B_G_ (LOW);
+	}
+	if (sig2.act_state[2] > v) {
+		SIG_B_Y_ (HIGH);
+	} else {
+		SIG_B_Y_ (LOW);
+	}
+	if (sig2.act_state[3] > v) {
+		SIG_B_4_ (HIGH);
+	} else {
+		SIG_B_4_ (LOW);
+	}
 }
 

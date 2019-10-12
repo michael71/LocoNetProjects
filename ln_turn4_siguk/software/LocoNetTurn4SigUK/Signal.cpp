@@ -1,8 +1,9 @@
 /*
 
  model a SINGLE signal with fading leds
- 
+
  version for english signals, Common Ground (A2982)
+ 4 LEDs (=4 outputs, for RED, GREEN, YELLOW, FEATHER)
 
  */
 
@@ -10,21 +11,21 @@
 #include "signal_def.h"
 #include "Signal.h"
 
-// create a signal with 4 aspects
+// create a signal with 4 leds
 Signal::Signal(uint8_t n) {
 	number = n;   // A=0, B=1
 	mytimer = 0;
 }
 
 void Signal::init() {
-	for (uint8_t i = 0; i < N_ASPECTS; i++) {
+	for (uint8_t i = 0; i < N_LEDS; i++) {
 		fin_state[i] = act_state[i] = 0;  // off
 	}
 
-	state_rg = 0;  // => red
+	state_rg = 0;  // => red on, green off
 	state_y = 0;   // => yellow off
-	state_f = 0;   // => feather off
-    calcStateAndSet();
+	state_feather = 0;   // => feather off
+	calcStateAndSet();
 
 	if (number == 0) {
 		pinMode(SIG_A_R, OUTPUT);
@@ -46,22 +47,22 @@ void Signal::calcStateAndSet() {
 		state = 0;
 	} else if (state_y == 0) {
 		// green or green with feather
-		if (state_f == 0) {
+		if (state_feather == 0) {
 			state = 1;
 		} else {
 			state = 4;
 		}
 	} else {
 		// yellow or yellow with feather
-		if (state_f == 0) {
+		if (state_feather == 0) {
 			state = 2;
 		} else {
 			state = 3;
 		}
 	}
 	set(state);
-	Serial.print("state=");
-	Serial.println(state);
+	//Serial.print("state=");
+	//Serial.println(state);
 }
 
 void Signal::setRG(uint8_t value) {
@@ -72,26 +73,38 @@ void Signal::setY(uint8_t value) {
 	state_y = value; // set yellow (second ln-address)
 	calcStateAndSet();
 }
-void Signal::setFeather(uint8_t value) {
+void Signal::setFeather(uint8_t value, uint8_t inv) {
 	// enable feather (will NOT be shown when RED is on)
-    Serial.print("feath=");
-    Serial.println(value);
+	Serial.print("feath=");
+	Serial.print(value);
+	Serial.print(" inv=");
+	Serial.println(inv);
 	if (value) {
-	    state_f = 1;
+		if (inv) {
+			state_feather = 0;
+		} else {
+			state_feather = 1;
+		}
 	} else {
-		state_f = 0;
+		if (inv) {
+			state_feather = 1;
+		} else {
+			state_feather = 0;
+		}
 	}
 	calcStateAndSet();
 }
 
 
 // version for english signals, Command Ground (A2982)
+// 5 different states possible:
 // value 0 = RED
 // value 1 = GREEN
 // value 2 = YELLOW
 // value 3 = Feather & YELLOW
 // value 4 = Feather & GREEN
 
+// final state (="to be") of a signal
 void Signal::set(uint8_t value) {
 	switch (value) {
 	case 0:
@@ -122,19 +135,20 @@ void Signal::set(uint8_t value) {
 		fin_state[3] = 16;
 		state = 3;
 		break;
-    case 4:
+	case 4:
 		fin_state[0] = 0;
 		fin_state[1] = 16;
 		fin_state[2] = 0;
 		fin_state[3] = 16;
 		state = 4;
 		break;
-	//default:
+		//default:
 		// do nothing
 	}
-	output();
+	//output();
 }
 
+/* no longer used (=> no fading of led on/off)
 void Signal::output(void) {
 
 	if (number == 0) {
@@ -156,20 +170,20 @@ void Signal::output(void) {
 		if (fin_state[3]) SIG_B_4_(1);
 		else SIG_B_4_(0);
 	}
-}
+}  */
 
-/*
+
 void Signal::process(void) {
-	
+
 	if ((millis() - mytimer) < 25)
 		return;
 
 	mytimer = millis();
 	// check for dimming LEDs (up/down), analog value range 0..255
-	for (uint8_t i = 0; i < N_ASPECTS; i++) {
+	for (uint8_t i = 0; i < N_LEDS; i++) {
 		if (act_state[i] < fin_state[i]) {
 			// increment 
-			uint8_t intens = act_state[i] + 2;
+			uint8_t intens = act_state[i] + 1;
 			if (intens > 16) {
 				intens = 16;
 			}
@@ -178,7 +192,7 @@ void Signal::process(void) {
 		}
 		if (act_state[i] > fin_state[i]) {
 			// decrement
-			uint8_t intens = act_state[i] - 2;
+			uint8_t intens = act_state[i] - 1;
 			if (intens < 0) {
 				intens = 0;
 			}
@@ -186,5 +200,5 @@ void Signal::process(void) {
 			// value gets written in interrupt routine
 		}
 	}
-} */
+}
 
